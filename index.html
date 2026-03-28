@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virality System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #080808;
+    --bg2: #0f0f0f;
+    --bg3: #141414;
+    --bg4: #1a1a1a;
+    --border: #1f1f1f;
+    --border2: #2a2a2a;
+    --text: #e8e8e8;
+    --text2: #888;
+    --text3: #444;
+    --purple: #7C6FE0;
+    --purple-light: #AFA9EC;
+    --purple-bg: #1a1730;
+    --green: #4CAF7D;
+    --green-bg: #0f1f15;
+    --amber: #E8A838;
+    --amber-bg: #1f1608;
+    --red: #E85555;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 200px;
+    background: var(--bg2);
+    border-right: 0.5px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  .logo {
+    padding: 20px 16px;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: var(--purple);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 10px;
+  }
+
+  .logo-icon svg { width: 16px; height: 16px; }
+  .logo-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .logo-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  .nav { padding: 8px 0; flex: 1; }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px;
+    font-size: 13px; color: var(--text2);
+    cursor: pointer; transition: all .15s;
+    border-left: 2px solid transparent;
+  }
+
+  .nav-item:hover { color: var(--text); background: var(--bg3); }
+  .nav-item.active { color: var(--text); background: var(--purple-bg); border-left-color: var(--purple); }
+
+  .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+  .config-section {
+    padding: 12px 16px;
+    border-top: 0.5px solid var(--border);
+  }
+
+  .config-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+
+  .config-input {
+    width: 100%; background: var(--bg3);
+    border: 0.5px solid var(--border2);
+    border-radius: 6px; color: var(--text);
+    font-size: 11px; font-family: 'DM Mono', monospace;
+    padding: 7px 10px; margin-bottom: 6px;
+  }
+
+  .config-input::placeholder { color: var(--text3); }
+  .config-input:focus { outline: none; border-color: var(--purple); }
+
+  .save-btn {
+    width: 100%; padding: 8px;
+    background: var(--purple); border: none;
+    border-radius: 6px; color: #fff;
+    font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: background .15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .save-btn:hover { background: #6358c8; }
+
+  /* ── MAIN ── */
+  .main {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  .topbar {
+    padding: 16px 24px;
+    border-bottom: 0.5px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .topbar-title { font-size: 17px; font-weight: 500; }
+  .topbar-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  .topbar-right { display: flex; gap: 8px; align-items: center; }
+
+  .filters { display: flex; gap: 8px; }
+
+  select {
+    background: var(--bg3); border: 0.5px solid var(--border2);
+    border-radius: 8px; color: var(--text2);
+    font-size: 12px; padding: 7px 12px;
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+  }
+
+  .btn {
+    padding: 8px 16px; border-radius: 8px;
+    font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all .15s;
+    font-family: 'DM Sans', sans-serif;
+    border: 0.5px solid var(--border2);
+    background: transparent; color: var(--text2);
+  }
+
+  .btn:hover { background: var(--bg3); color: var(--text); }
+  .btn.primary { background: var(--purple); border-color: var(--purple); color: #fff; }
+  .btn.primary:hover { background: #6358c8; }
+
+  /* ── CONTENT AREA ── */
+  .content { flex: 1; display: flex; overflow: hidden; }
+
+  /* VIDEOS PAGE */
+  .videos-area {
+    flex: 1; overflow-y: auto; padding: 20px 24px;
+  }
+
+  .videos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+
+  .vcard {
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+    cursor: pointer; transition: border-color .15s;
+  }
+
+  .vcard:hover { border-color: var(--border2); }
+  .vcard.selected { border-color: var(--purple); }
+
+  .vthumb {
+    width: 100%; aspect-ratio: 9/14;
+    position: relative; overflow: hidden;
+    display: flex; align-items: flex-end;
+  }
+
+  .vthumb-content {
+    padding: 10px; width: 100%;
+    background: linear-gradient(transparent, rgba(0,0,0,.85));
+  }
+
+  .vthumb-concept {
+    font-size: 11px; font-weight: 500;
+    line-height: 1.4; margin-bottom: 6px;
+  }
+
+  .vthumb-views {
+    font-size: 12px; font-weight: 500; color: #fff;
+    display: flex; align-items: center; gap: 4px;
+  }
+
+  .play { width: 0; height: 0; border: 4px solid transparent; border-left: 7px solid #fff; display: inline-block; }
+
+  .vinfo { padding: 10px; }
+  .vhandle { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+
+  .vstats { display: flex; gap: 10px; font-size: 11px; color: var(--text3); margin-bottom: 8px; }
+
+  .vtag {
+    font-size: 10px; padding: 2px 8px;
+    border-radius: 20px; background: var(--purple-bg);
+    color: var(--purple-light); display: inline-block; margin-bottom: 8px;
+  }
+
+  .vbtns { display: flex; gap: 6px; }
+
+  .vbtn {
+    flex: 1; padding: 6px 0; font-size: 11px;
+    border-radius: 6px; border: 0.5px solid var(--border2);
+    background: transparent; color: var(--text2);
+    cursor: pointer; transition: all .15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .vbtn:hover { background: var(--bg3); color: var(--text); }
+  .vbtn.accent { background: var(--purple-bg); border-color: var(--purple); color: var(--purple-light); }
+
+  /* SIDE PANEL */
+  .panel {
+    width: 360px; flex-shrink: 0;
+    background: var(--bg2); border-left: 0.5px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  .panel-header { padding: 16px; border-bottom: 0.5px solid var(--border); }
+  .panel-handle { font-size: 14px; font-weight: 500; }
+  .panel-meta { display: flex; gap: 10px; font-size: 11px; color: var(--text2); margin-top: 4px; }
+
+  .ptabs { display: flex; border-bottom: 0.5px solid var(--border); }
+
+  .ptab {
+    flex: 1; padding: 11px; font-size: 12px;
+    text-align: center; color: var(--text2);
+    cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all .15s;
+  }
+
+  .ptab:hover { color: var(--text); }
+  .ptab.active { color: var(--text); border-bottom-color: var(--purple); }
+
+  .panel-body { flex: 1; overflow-y: auto; padding: 16px; }
+
+  .scene { margin-bottom: 16px; }
+  .scene-label { font-size: 10px; font-weight: 500; color: var(--purple-light); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+  .scene-text { font-size: 12px; color: var(--text); line-height: 1.6; margin-bottom: 4px; }
+  .scene-why { font-size: 11px; color: var(--text2); font-style: italic; line-height: 1.5; }
+
+  .concept-card {
+    background: var(--bg3); border: 0.5px solid var(--border);
+    border-radius: 8px; padding: 12px; margin-bottom: 10px;
+  }
+
+  .concept-num { font-size: 10px; color: var(--purple); font-weight: 500; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+  .concept-title { font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+  .concept-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
+
+  .gen-btn {
+    width: 100%; margin-top: 12px; padding: 11px;
+    background: var(--purple); border: none; border-radius: 8px;
+    color: #fff; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: background .15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .gen-btn:hover { background: #6358c8; }
+
+  /* PIPELINE PAGE */
+  .pipeline-page { flex: 1; padding: 24px; overflow-y: auto; }
+
+  .pipeline-card {
+    background: var(--bg2); border: 0.5px solid var(--border);
+    border-radius: 12px; padding: 20px; margin-bottom: 16px;
+  }
+
+  .pipeline-card h3 { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .pipeline-card p { font-size: 12px; color: var(--text2); margin-bottom: 16px; }
+
+  .agent-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 0; border-bottom: 0.5px solid var(--border);
+  }
+
+  .agent-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+  .agent-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0; margin-top: 3px;
+    background: var(--bg4);
+  }
+
+  .agent-dot.done { background: var(--green); }
+  .agent-dot.active { background: var(--amber); animation: pulse 1s infinite; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .agent-info { flex: 1; }
+  .agent-name { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+  .agent-status { font-size: 11px; color: var(--text2); margin-bottom: 8px; }
+
+  .pbar { height: 3px; background: var(--bg4); border-radius: 2px; overflow: hidden; }
+  .pbar-fill { height: 100%; border-radius: 2px; transition: width .6s ease; }
+
+  .results-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px;
+  }
+
+  .result-box {
+    background: var(--bg3); border-radius: 8px; padding: 14px; text-align: center;
+  }
+
+  .result-num { font-size: 28px; font-weight: 300; color: var(--purple-light); }
+  .result-label { font-size: 11px; color: var(--text2); margin-top: 4px; }
+
+  /* LOG */
+  .log {
+    background: var(--bg3); border: 0.5px solid var(--border);
+    border-radius: 8px; padding: 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; max-height: 180px;
+    overflow-y: auto; margin-top: 16px;
+  }
+
+  .log-line { padding: 3px 0; color: var(--text2); border-bottom: 0.5px solid var(--border); }
+  .log-line:last-child { border: none; }
+  .log-line .ts { color: var(--text3); }
+  .log-line .ok { color: var(--green); }
+  .log-line .warn { color: var(--amber); }
+  .log-line .info { color: var(--purple-light); }
+
+  /* CREATORS */
+  .creators-page { flex: 1; padding: 24px; overflow-y: auto; }
+
+  .creators-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px;
+  }
+
+  .creator-card {
+    background: var(--bg2); border: 0.5px solid var(--border);
+    border-radius: 10px; padding: 16px;
+  }
+
+  .creator-top { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+
+  .avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: var(--purple-bg); display: flex;
+    align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 500; color: var(--purple-light);
+    flex-shrink: 0;
+  }
+
+  .creator-name { font-size: 13px; font-weight: 500; }
+  .creator-cat { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  .creator-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px; border-top: 0.5px solid var(--border); padding-top: 12px;
+  }
+
+  .cstat-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; }
+  .cstat-val { font-size: 14px; font-weight: 500; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+
+  .modal {
+    background: var(--bg2); border: 0.5px solid var(--border2);
+    border-radius: 14px; padding: 24px; width: 380px;
+  }
+
+  .modal-title { font-size: 15px; font-weight: 500; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+  .modal-close { color: var(--text3); cursor: pointer; font-size: 20px; line-height: 1; }
+  .modal-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+
+  .modal-input {
+    width: 100%; background: var(--bg3);
+    border: 0.5px solid var(--border2); border-radius: 8px;
+    color: var(--text); font-size: 13px; padding: 10px 12px;
+    margin-bottom: 14px; font-family: 'DM Sans', sans-serif;
+  }
+
+  .modal-input:focus { outline: none; border-color: var(--purple); }
+  .modal-hint { font-size: 11px; color: var(--text3); margin-bottom: 16px; line-height: 1.5; }
+
+  .modal-submit {
+    width: 100%; padding: 11px; background: var(--purple);
+    border: none; border-radius: 8px; color: #fff;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; transition: background .15s;
+  }
+
+  .modal-submit:hover { background: #6358c8; }
+
+  /* EMPTY STATE */
+  .empty {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 100%;
+    color: var(--text3); font-size: 13px; gap: 8px;
+  }
+
+  .empty svg { width: 32px; height: 32px; opacity: .3; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* GUION PANEL */
+  .guion-section { margin-bottom: 16px; }
+  .guion-tag { font-size: 10px; font-weight: 500; color: var(--amber); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+  .guion-text { font-size: 12px; color: var(--text); line-height: 1.7; background: var(--bg3); border-radius: 6px; padding: 10px; }
+
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid var(--border2);
+    border-top-color: var(--purple); border-radius: 50%;
+    animation: spin .7s linear infinite; display: inline-block;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 16 16" fill="none">
+        <rect x="2" y="2" width="5" height="5" rx="1" fill="white" opacity=".9"/>
+        <rect x="9" y="2" width="5" height="5" rx="1" fill="white" opacity=".6"/>
+        <rect x="2" y="9" width="5" height="5" rx="1" fill="white" opacity=".6"/>
+        <rect x="9" y="9" width="5" height="5" rx="1" fill="white" opacity=".9"/>
+      </svg>
+    </div>
+    <div class="logo-name">Virality System</div>
+    <div class="logo-sub">Instagram Reels AI</div>
+  </div>
+
+  <nav class="nav">
+    <div class="nav-item active" onclick="showPage('videos')">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 3a1 1 0 011-1h10a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V3zm1 0v10h10V3H3z"/><path d="M6 6l4 2-4 2V6z"/></svg>
+      Videos
+    </div>
+    <div class="nav-item" onclick="showPage('pipeline')">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1 3a1 1 0 011-1h3a1 1 0 011 1v1h4V3a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1V5H6v1a1 1 0 01-1 1H2a1 1 0 01-1-1V3zm10 7a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-3zM1 10a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H2a1 1 0 01-1-1v-3z"/></svg>
+      Run Pipeline
+    </div>
+    <div class="nav-item" onclick="showPage('creators')">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 8a3 3 0 100-6 3 3 0 000 6zM2 14s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H2z"/></svg>
+      Creators
+    </div>
+    <div class="nav-item" onclick="showPage('configs')">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 100 6.492 3.246 3.246 0 000-6.492zM5.754 8a2.246 2.246 0 114.492 0 2.246 2.246 0 01-4.492 0z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 01-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 01-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 01.52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 011.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 011.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 01.52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 01-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 01-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 002.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 001.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 00-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 00-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 00-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 003.06 9.377l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 004.175 4.82l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 002.692-1.115l.094-.319z"/></svg>
+      Configs
+    </div>
+  </nav>
+
+  <div class="config-section">
+    <div class="config-label">API Keys</div>
+    <input class="config-input" id="apify-key" type="password" placeholder="Apify API Key" />
+    <input class="config-input" id="claude-key" type="password" placeholder="Claude API Key" />
+    <button class="save-btn" onclick="saveKeys()">Guardar keys</button>
+    <div id="keys-status" style="font-size:10px;color:var(--text3);margin-top:6px;text-align:center"></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- VIDEOS PAGE -->
+  <div id="page-videos" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Videos</div>
+        <div class="topbar-sub">Competitor reels analizados con IA</div>
+      </div>
+      <div class="topbar-right">
+        <div class="filters">
+          <select id="filter-config"><option>All Configs</option></select>
+          <select id="filter-creator"><option>All Creators</option></select>
+          <select id="filter-sort"><option>Most Views</option><option>Most Likes</option><option>Recent</option></select>
+        </div>
+        <span id="video-count" style="font-size:12px;color:var(--text2);padding:7px 12px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px">0 videos</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="videos-area" id="videos-area">
+        <div class="empty" id="videos-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9l6 3-6 3V9z"/></svg>
+          <span>Agrega creators y ejecuta el pipeline para ver videos aquí</span>
+          <button class="btn primary" style="margin-top:8px" onclick="showPage('pipeline')">Ir al pipeline →</button>
+        </div>
+        <div class="videos-grid" id="videos-grid" style="display:none"></div>
+      </div>
+      <div class="panel" id="side-panel">
+        <div class="panel-header">
+          <div class="panel-handle" id="panel-handle">Selecciona un video</div>
+          <div class="panel-meta" id="panel-meta"></div>
+        </div>
+        <div class="ptabs">
+          <div class="ptab active" onclick="switchTab('analysis',this)">Analysis</div>
+          <div class="ptab" onclick="switchTab('concepts',this)">Concepts</div>
+          <div class="ptab" onclick="switchTab('script',this)">Guión IA</div>
+        </div>
+        <div class="panel-body" id="panel-body">
+          <div style="color:var(--text3);font-size:12px;margin-top:24px;text-align:center">Haz clic en un video para ver el análisis</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PIPELINE PAGE -->
+  <div id="page-pipeline" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Run Pipeline</div>
+        <div class="topbar-sub">Extrae y analiza competencia automáticamente</div>
+      </div>
+      <div class="topbar-right">
+        <select id="pipeline-client">
+          <option>Selecciona cliente</option>
+        </select>
+        <button class="btn primary" onclick="runPipeline()">Ejecutar pipeline</button>
+      </div>
+    </div>
+    <div class="pipeline-page">
+      <div class="pipeline-card">
+        <h3>Agentes en tiempo real</h3>
+        <p>El sistema extrae los videos más virales de tus creators y genera análisis + guiones automáticamente</p>
+        <div class="agent-row">
+          <div class="agent-dot" id="dot1"></div>
+          <div class="agent-info">
+            <div class="agent-name">Agente scraper — Apify</div>
+            <div class="agent-status" id="status1">En espera...</div>
+            <div class="pbar"><div class="pbar-fill" id="bar1" style="width:0%;background:var(--green)"></div></div>
+          </div>
+        </div>
+        <div class="agent-row">
+          <div class="agent-dot" id="dot2"></div>
+          <div class="agent-info">
+            <div class="agent-name">Agente analista — Claude IA</div>
+            <div class="agent-status" id="status2">Esperando datos...</div>
+            <div class="pbar"><div class="pbar-fill" id="bar2" style="width:0%;background:var(--amber)"></div></div>
+          </div>
+        </div>
+        <div class="agent-row">
+          <div class="agent-dot" id="dot3"></div>
+          <div class="agent-info">
+            <div class="agent-name">Agente guionista — Claude IA</div>
+            <div class="agent-status" id="status3">Esperando análisis...</div>
+            <div class="pbar"><div class="pbar-fill" id="bar3" style="width:0%;background:var(--purple)"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="log" id="pipeline-log">
+        <div class="log-line"><span class="ts">[sistema]</span> Dashboard listo. Configura tus API keys y agrega creators para comenzar.</div>
+      </div>
+
+      <div id="pipeline-results" style="display:none">
+        <div class="results-grid">
+          <div class="result-box"><div class="result-num" id="res-videos">0</div><div class="result-label">Videos extraídos</div></div>
+          <div class="result-box"><div class="result-num" id="res-patterns">0</div><div class="result-label">Patrones detectados</div></div>
+          <div class="result-box"><div class="result-num" id="res-scripts">0</div><div class="result-label">Guiones generados</div></div>
+        </div>
+        <button class="gen-btn" style="margin-top:12px" onclick="showPage('videos')">Ver videos analizados →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CREATORS PAGE -->
+  <div id="page-creators" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Creators</div>
+        <div class="topbar-sub">Perfiles de Instagram en seguimiento</div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn primary" onclick="openAddCreator()">+ Add Creator</button>
+      </div>
+    </div>
+    <div class="creators-page">
+      <div class="creators-grid" id="creators-grid"></div>
+    </div>
+  </div>
+
+  <!-- CONFIGS PAGE -->
+  <div id="page-configs" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Configs</div>
+        <div class="topbar-sub">Perfil de tus clientes</div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn primary" onclick="openAddConfig()">+ Add Cliente</button>
+      </div>
+    </div>
+    <div class="creators-page">
+      <div class="creators-grid" id="configs-grid"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+// ── STATE ──
+let state = {
+  apifyKey: localStorage.getItem('vs_apify') || '',
+  claudeKey: localStorage.getItem('vs_claude') || '',
+  creators: JSON.parse(localStorage.getItem('vs_creators') || '[]'),
+  configs: JSON.parse(localStorage.getItem('vs_configs') || '[]'),
+  videos: JSON.parse(localStorage.getItem('vs_videos') || '[]'),
+  selectedVideo: null,
+  currentTab: 'analysis'
+};
+
+// Load saved keys
+if(state.apifyKey) document.getElementById('apify-key').value = state.apifyKey;
+if(state.claudeKey) document.getElementById('claude-key').value = state.claudeKey;
+
+// ── KEYS ──
+function saveKeys() {
+  state.apifyKey = document.getElementById('apify-key').value.trim();
+  state.claudeKey = document.getElementById('claude-key').value.trim();
+  localStorage.setItem('vs_apify', state.apifyKey);
+  localStorage.setItem('vs_claude', state.claudeKey);
+  const s = document.getElementById('keys-status');
+  s.style.color = 'var(--green)';
+  s.textContent = 'Keys guardadas';
+  setTimeout(() => { s.textContent = ''; }, 2000);
+}
+
+// ── NAVIGATION ──
+function showPage(p) {
+  ['videos','pipeline','creators','configs'].forEach(x => {
+    const el = document.getElementById('page-'+x);
+    el.style.display = x === p ? 'flex' : 'none';
+  });
+  document.querySelectorAll('.nav-item').forEach((el, i) => {
+    el.classList.toggle('active', ['videos','pipeline','creators','configs'][i] === p);
+  });
+  if(p === 'creators') renderCreators();
+  if(p === 'configs') renderConfigs();
+  if(p === 'videos') renderVideos();
+}
+
+// ── VIDEOS ──
+const COLORS = [
+  ['#1a0e05','#2e1a08','#E8A838'],
+  ['#0a150a','#112011','#4CAF7D'],
+  ['#0f0a1e','#1a1030','#7C6FE0'],
+  ['#1a0a0a','#2e1010','#E85555'],
+  ['#0a1520','#102030','#4A9EE8'],
+  ['#150a15','#2a1030','#C06FE0'],
+];
+
+function renderVideos() {
+  const grid = document.getElementById('videos-grid');
+  const empty = document.getElementById('videos-empty');
+  const count = document.getElementById('video-count');
+  count.textContent = state.videos.length + ' videos';
+  if(state.videos.length === 0) {
+    empty.style.display = 'flex';
+    grid.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.style.display = 'grid';
+  grid.innerHTML = state.videos.map((v, i) => {
+    const c = COLORS[i % COLORS.length];
+    const sel = state.selectedVideo === i;
+    const thumb = v.displayUrl || v.thumbnailUrl || v.previewUrl || '';
+    const profilePic = v.ownerProfilePicUrl || v.profilePicUrl || '';
+    const postUrl = v.url || v.shortCode ? `https://www.instagram.com/p/${v.shortCode}/` : '';
+    return `<div class="vcard ${sel?'selected':''}" onclick="selectVideo(${i})">
+      <div class="vthumb" style="background:${c[0]};position:relative">
+        ${thumb ? `<img src="${thumb}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none'" />` : `<div style="width:100%;height:100%;background:${c[1]};display:flex;align-items:center;justify-content:center"><span style="font-size:11px;color:#444">Sin preview</span></div>`}
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:8px;background:linear-gradient(transparent,rgba(0,0,0,.85))">
+          <div class="vthumb-views"><span class="play"></span>${formatNum(v.videoPlayCount||v.likesCount||0)}</div>
+        </div>
+        ${postUrl ? `<a href="${postUrl}" target="_blank" onclick="event.stopPropagation()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);border-radius:6px;padding:4px 8px;font-size:10px;color:#fff;text-decoration:none;border:0.5px solid rgba(255,255,255,.2)">Ver IG</a>` : ''}
+      </div>
+      <div class="vinfo">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          ${profilePic ? `<img src="${profilePic}" style="width:20px;height:20px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'" />` : ''}
+          <div class="vhandle" style="margin:0">@${v.ownerUsername||v.username||'creator'}</div>
+        </div>
+        <div class="vstats">
+          <span>♡ ${formatNum(v.likesCount||0)}</span>
+          <span>◻ ${formatNum(v.commentsCount||0)}</span>
+        </div>
+        <div class="vtag">${v.config||'Content'}</div>
+        <div class="vbtns">
+          <div class="vbtn" onclick="event.stopPropagation();selectVideo(${i},'analysis')">Analysis</div>
+          <div class="vbtn accent" onclick="event.stopPropagation();selectVideo(${i},'concepts')">Concepts</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function formatNum(n) {
+  n = parseInt(n) || 0;
+  if(n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if(n >= 1000) return (n/1000).toFixed(1) + 'K';
+  return n.toString();
+}
+
+function selectVideo(i, tab) {
+  state.selectedVideo = i;
+  if(tab) state.currentTab = tab;
+  renderVideos();
+  const v = state.videos[i];
+  document.getElementById('panel-handle').textContent = '@' + (v.ownerUsername || v.username || 'creator');
+  document.getElementById('panel-meta').innerHTML =
+    `<span>▶ ${formatNum(v.videoPlayCount||0)}</span><span>♡ ${formatNum(v.likesCount||0)}</span><span>◻ ${formatNum(v.commentsCount||0)}</span>`;
+  document.querySelectorAll('.ptab').forEach((t,ti) => {
+    t.classList.toggle('active', ['analysis','concepts','script'][ti] === state.currentTab);
+  });
+  renderPanel(v, state.currentTab);
+}
+
+function switchTab(tab, el) {
+  state.currentTab = tab;
+  document.querySelectorAll('.ptab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  if(state.selectedVideo !== null) renderPanel(state.videos[state.selectedVideo], tab);
+}
+
+function renderPanel(v, tab) {
+  const b = document.getElementById('panel-body');
+  if(tab === 'analysis') {
+    const analysis = v.aiAnalysis;
+    if(!analysis) {
+      b.innerHTML = `<div style="color:var(--text3);font-size:12px;margin-top:16px">
+        <p style="margin-bottom:12px">No hay análisis IA aún para este video.</p>
+        <button class="gen-btn" onclick="analyzeVideo(${state.selectedVideo})">Analizar con IA</button>
+      </div>`;
+      return;
+    }
+    b.innerHTML = analysis.scenes.map(s => `
+      <div class="scene">
+        <div class="scene-label">${s.label}</div>
+        <div class="scene-text">${s.text}</div>
+        <div class="scene-why">${s.why}</div>
+      </div>`).join('') +
+      `<button class="gen-btn" onclick="generateScript(${state.selectedVideo})">Generar guión adaptado →</button>`;
+  } else if(tab === 'concepts') {
+    const analysis = v.aiAnalysis;
+    if(!analysis) {
+      b.innerHTML = `<div style="color:var(--text3);font-size:12px;margin-top:16px">
+        <p style="margin-bottom:12px">Primero analiza este video con IA.</p>
+        <button class="gen-btn" onclick="analyzeVideo(${state.selectedVideo})">Analizar con IA</button>
+      </div>`;
+      return;
+    }
+    b.innerHTML = analysis.concepts.map(c => `
+      <div class="concept-card">
+        <div class="concept-num">${c.num}</div>
+        <div class="concept-title">${c.title}</div>
+        <div class="concept-body">${c.body}</div>
+      </div>`).join('') +
+      `<button class="gen-btn" onclick="generateScript(${state.selectedVideo})">Desarrollar concepto →</button>`;
+  } else if(tab === 'script') {
+    if(!v.aiScript) {
+      b.innerHTML = `<div style="color:var(--text3);font-size:12px;margin-top:16px">
+        <p style="margin-bottom:12px">Genera el guión adaptado para tu cliente.</p>
+        <button class="gen-btn" onclick="generateScript(${state.selectedVideo})">Generar guión con IA</button>
+      </div>`;
+      return;
+    }
+    b.innerHTML = `<div style="font-size:12px;color:var(--text);line-height:1.7;white-space:pre-wrap">${v.aiScript}</div>`;
+  }
+}
+
+// ── CLAUDE AI CALLS ──
+async function callClaude(prompt) {
+  if(!state.claudeKey) { alert('Primero guarda tu Claude API Key en el sidebar.'); return null; }
+  const res = await fetch('/.netlify/functions/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ claudeKey: state.claudeKey, prompt })
+  });
+  const data = await res.json();
+  return data.content?.[0]?.text || null;
+}
+
+async function analyzeVideo(idx) {
+  const v = state.videos[idx];
+  const b = document.getElementById('panel-body');
+  b.innerHTML = `<div style="display:flex;align-items:center;gap:10px;margin-top:20px;color:var(--text2);font-size:13px"><div class="spinner"></div> Analizando con IA...</div>`;
+
+  const client = state.configs[0] ? `Cliente: ${state.configs[0].name} — Nicho: ${state.configs[0].niche} — Tono: ${state.configs[0].tone}` : 'Cliente: negocio local';
+
+  const prompt = `Analiza este video viral de Instagram Reels y devuelve SOLO un JSON válido sin markdown.
+
+Video:
+- Username: @${v.ownerUsername || v.username}
+- Views: ${formatNum(v.videoPlayCount || 0)}
+- Likes: ${formatNum(v.likesCount || 0)}
+- Caption: "${(v.caption || '').substring(0, 300)}"
+- ${client}
+
+Responde SOLO con este JSON exacto:
+{
+  "scenes": [
+    {"label": "Scene 1 (0-3s)", "text": "descripción del hook", "why": "por qué funciona psicológicamente"},
+    {"label": "Scene 2 (3-15s)", "text": "descripción", "why": "por qué funciona"},
+    {"label": "Scene 3 (15-40s)", "text": "descripción", "why": "por qué funciona"},
+    {"label": "Scene 4 (40-60s)", "text": "descripción del CTA", "why": "por qué funciona"}
+  ],
+  "concepts": [
+    {"num": "Concept 1", "title": "título del concepto adaptado al cliente", "body": "descripción del concepto"},
+    {"num": "Concept 2", "title": "título alternativo", "body": "descripción alternativa"}
+  ]
+}`;
+
+  const raw = await callClaude(prompt);
+  if(!raw) return;
+  try {
+    const clean = raw.replace(/```json|```/g, '').trim();
+    state.videos[idx].aiAnalysis = JSON.parse(clean);
+    localStorage.setItem('vs_videos', JSON.stringify(state.videos));
+    renderPanel(state.videos[idx], state.currentTab);
+  } catch(e) {
+    b.innerHTML = `<div style="color:var(--red);font-size:12px;margin-top:16px">Error al parsear respuesta IA. Intenta de nuevo.</div>`;
+  }
+}
+
+async function generateScript(idx) {
+  const v = state.videos[idx];
+  state.currentTab = 'script';
+  document.querySelectorAll('.ptab').forEach((t, ti) => t.classList.toggle('active', ti === 2));
+  const b = document.getElementById('panel-body');
+  b.innerHTML = `<div style="display:flex;align-items:center;gap:10px;margin-top:20px;color:var(--text2);font-size:13px"><div class="spinner"></div> Generando guión...</div>`;
+
+  const client = state.configs[0] ? state.configs[0] : { name: 'tu cliente', niche: 'negocio local', tone: 'cercano y auténtico', cta: 'guardar' };
+  const analysis = v.aiAnalysis;
+
+  const prompt = `Eres un experto en contenido viral para Instagram Reels.
+
+Basándote en este video viral de @${v.ownerUsername || v.username} con ${formatNum(v.videoPlayCount || 0)} views, genera un guión completo listo para grabar para:
+
+Cliente: ${client.name}
+Nicho: ${client.niche}
+Tono: ${client.tone}
+CTA preferido: ${client.cta}
+
+Patrones del video viral:
+${analysis ? analysis.scenes.map(s => `- ${s.label}: ${s.text}`).join('\n') : `Caption: ${(v.caption || '').substring(0, 200)}`}
+
+Genera el guión con este formato:
+HOOK (0-3s): [texto exacto a decir]
+ESCENA 2 (3-15s): [descripción visual + texto]
+ESCENA 3 (15-40s): [descripción visual + texto]
+CTA (40-60s): [texto exacto del call to action]
+
+NOTAS DE PRODUCCIÓN:
+- Ángulo de cámara recomendado
+- Música sugerida
+- Texto en pantalla
+
+Hazlo específico para ${client.name}, adaptando el patrón viral al nicho de ${client.niche}.`;
+
+  const result = await callClaude(prompt);
+  if(!result) return;
+  state.videos[idx].aiScript = result;
+  localStorage.setItem('vs_videos', JSON.stringify(state.videos));
+  b.innerHTML = `<div style="font-size:12px;color:var(--text);line-height:1.7;white-space:pre-wrap">${result}</div>`;
+}
+
+// ── APIFY PIPELINE ──
+function addLog(msg, type='') {
+  const log = document.getElementById('pipeline-log');
+  const ts = new Date().toLocaleTimeString('es', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="ts">[${ts}]</span> <span class="${type}">${msg}</span>`;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function setAgent(n, state_a, desc, pct) {
+  const dot = document.getElementById('dot'+n);
+  const status = document.getElementById('status'+n);
+  const bar = document.getElementById('bar'+n);
+  dot.className = 'agent-dot' + (state_a==='done'?' done':state_a==='active'?' active':'');
+  status.textContent = desc;
+  bar.style.width = pct + '%';
+}
+
+async function runPipeline() {
+  if(!state.apifyKey) { alert('Primero guarda tu Apify API Key en el sidebar.'); return; }
+  if(state.creators.length === 0) { alert('Primero agrega creators en la sección Creators.'); return; }
+
+  document.getElementById('pipeline-results').style.display = 'none';
+  setAgent(1,'active','Conectando con Apify...',10);
+  setAgent(2,'','Esperando datos...',0);
+  setAgent(3,'','Esperando análisis...',0);
+  addLog('Pipeline iniciado', 'ok');
+
+  const usernames = state.creators.map(c => c.handle.replace('@',''));
+  addLog(`Scrapeando ${usernames.length} perfiles: ${usernames.join(', ')}`, 'info');
+
+  try {
+    setAgent(1,'active','Iniciando actor en Apify...',25);
+
+    const runRes = await fetch('/.netlify/functions/apify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: `https://api.apify.com/v2/acts/apify~instagram-scraper/runs?token=${state.apifyKey}`,
+        method: 'POST',
+        body: { directUrls: usernames.map(u => `https://www.instagram.com/${u}/`), resultsType: 'posts', resultsLimit: 10, extendOutputFunction: '($) => { return {} }' }
+      })
+    });
+
+    const runData = await runRes.json();
+    if(!runData.data?.id) throw new Error('No se pudo iniciar el actor de Apify. Verifica tu API key.');
+
+    const runId = runData.data.id;
+    addLog(`Actor iniciado — Run ID: ${runId}`, 'ok');
+    setAgent(1,'active','Extrayendo videos virales...',50);
+
+    // Poll for completion
+    let done = false;
+    let attempts = 0;
+    while(!done && attempts < 30) {
+      await new Promise(r => setTimeout(r, 4000));
+      const statusRes = await fetch('/.netlify/functions/apify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: `https://api.apify.com/v2/actor-runs/${runId}?token=${state.apifyKey}` })
+      });
+      const statusData = await statusRes.json();
+      const runStatus = statusData.data?.status;
+      addLog(`Estado del scraper: ${runStatus}`, '');
+      if(runStatus === 'SUCCEEDED') done = true;
+      else if(runStatus === 'FAILED' || runStatus === 'ABORTED') throw new Error('El scraper falló. Verifica tu API key de Apify.');
+      attempts++;
+      setAgent(1,'active','Extrayendo videos...',50 + attempts*1.5);
+    }
+
+    setAgent(1,'active','Descargando resultados...',90);
+    const dataRes = await fetch('/.netlify/functions/apify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${state.apifyKey}&limit=50` })
+    });
+    const items = await dataRes.json();
+
+    addLog(`${items.length} videos extraídos de Apify`, 'ok');
+    setAgent(1,'done','Completado — ' + items.length + ' videos',100);
+
+    // Store videos with creator config tags
+    const client = state.configs[0]?.name || 'Cliente';
+    const tagged = items.map(v => ({ ...v, config: client }));
+    // Extract and update creator profile data from video metadata
+    const creatorMap = {};
+    items.forEach(v => {
+      const username = v.ownerUsername || v.username;
+      if(username && !creatorMap[username]) {
+        creatorMap[username] = {
+          profilePic: v.ownerProfilePicUrl || v.profilePicUrl || '',
+          followers: v.ownerFollowersCount ? formatNum(v.ownerFollowersCount) : '—',
+          posts: v.ownerPostsCount ? formatNum(v.ownerPostsCount) : '—',
+          bio: v.ownerBiography || v.biography || '',
+          profileUrl: `https://www.instagram.com/${username}/`,
+          avgViews: formatNum(Math.round(items.filter(x=>(x.ownerUsername||x.username)===username).reduce((a,x)=>a+(x.videoPlayCount||0),0) / items.filter(x=>(x.ownerUsername||x.username)===username).length))
+        };
+      }
+    });
+    // Update creators with real data
+    state.creators = state.creators.map(c => {
+      const uname = c.handle.replace('@','');
+      return creatorMap[uname] ? { ...c, ...creatorMap[uname] } : c;
+    });
+    localStorage.setItem('vs_creators', JSON.stringify(state.creators));
+    state.videos = tagged;
+    localStorage.setItem('vs_videos', JSON.stringify(state.videos));
+
+    document.getElementById('res-videos').textContent = items.length;
+    setAgent(2,'active','Analizando patrones con IA...',30);
+    addLog('Analizando patrones con Claude IA...', 'info');
+
+    // Auto-analyze first 3 videos if claude key exists
+    let analyzed = 0;
+    if(state.claudeKey && items.length > 0) {
+      for(let i = 0; i < Math.min(3, items.length); i++) {
+        setAgent(2,'active',`Analizando video ${i+1} de ${Math.min(3,items.length)}...`, 30 + i*20);
+        await analyzeVideoSilent(i);
+        analyzed++;
+        addLog(`Video ${i+1} analizado`, 'ok');
+      }
+    }
+
+    setAgent(2,'done',`Completado — ${analyzed} videos analizados`,100);
+    document.getElementById('res-patterns').textContent = analyzed * 2 + '+';
+
+    setAgent(3,'active','Generando guiones...',50);
+    addLog('Generando guiones adaptados...', 'info');
+
+    let scripts = 0;
+    if(state.claudeKey && items.length > 0) {
+      await generateScriptSilent(0);
+      scripts = 1;
+      addLog('Guión generado para video principal', 'ok');
+    }
+
+    setAgent(3,'done','Completado — ' + (scripts || 'listo'),100);
+    document.getElementById('res-scripts').textContent = scripts;
+
+    addLog('Pipeline completado exitosamente', 'ok');
+    document.getElementById('pipeline-results').style.display = 'block';
+
+  } catch(err) {
+    addLog('Error: ' + err.message, 'warn');
+    setAgent(1,'','Error en el scraper',0);
+  }
+}
+
+async function analyzeVideoSilent(idx) {
+  const v = state.videos[idx];
+  const client = state.configs[0] ? `Cliente: ${state.configs[0].name} — Nicho: ${state.configs[0].niche}` : 'negocio local';
+  const prompt = `Analiza este video viral de Instagram y devuelve SOLO JSON sin markdown:
+Video: @${v.ownerUsername||v.username} | ${formatNum(v.videoPlayCount||0)} views | Caption: "${(v.caption||'').substring(0,200)}" | ${client}
+
+{"scenes":[{"label":"Scene 1 (0-3s)","text":"hook","why":"razón"},{"label":"Scene 2 (3-15s)","text":"texto","why":"razón"},{"label":"Scene 3 (15-40s)","text":"texto","why":"razón"},{"label":"Scene 4 (40-60s)","text":"CTA","why":"razón"}],"concepts":[{"num":"Concept 1","title":"título adaptado","body":"descripción"},{"num":"Concept 2","title":"título alternativo","body":"descripción"}]}`;
+
+  const raw = await callClaude(prompt);
+  if(!raw) return;
+  try {
+    const clean = raw.replace(/```json|```/g,'').trim();
+    state.videos[idx].aiAnalysis = JSON.parse(clean);
+    localStorage.setItem('vs_videos', JSON.stringify(state.videos));
+  } catch(e) {}
+}
+
+async function generateScriptSilent(idx) {
+  const v = state.videos[idx];
+  const client = state.configs[0] || { name:'tu cliente', niche:'negocio local', tone:'auténtico', cta:'guardar' };
+  const prompt = `Genera guión viral para Instagram Reels.
+Video de referencia: @${v.ownerUsername||v.username} | ${formatNum(v.videoPlayCount||0)} views
+Caption referencia: "${(v.caption||'').substring(0,150)}"
+Cliente: ${client.name} | Nicho: ${client.niche} | Tono: ${client.tone} | CTA: ${client.cta}
+
+Formato:
+HOOK (0-3s): [texto exacto]
+ESCENA 2 (3-15s): [visual + texto]
+ESCENA 3 (15-40s): [visual + texto]
+CTA (40-60s): [texto exacto]
+NOTAS: [ángulo, música, texto en pantalla]`;
+
+  const result = await callClaude(prompt);
+  if(!result) return;
+  state.videos[idx].aiScript = result;
+  localStorage.setItem('vs_videos', JSON.stringify(state.videos));
+}
+
+// ── CREATORS ──
+function renderCreators() {
+  const g = document.getElementById('creators-grid');
+  if(state.creators.length === 0) {
+    g.innerHTML = `<div class="empty" style="grid-column:1/-1;height:200px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      <span>Agrega tu primer creator</span>
+    </div>`;
+    return;
+  }
+  g.innerHTML = state.creators.map((c, i) => `
+    <div class="creator-card">
+      <div class="creator-top">
+        ${c.profilePic ? `<img src="${c.profilePic}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.onerror=null;this.style.display='none'" />` : `<div class="avatar">${c.handle.replace('@','').substring(0,2).toUpperCase()}</div>`}
+        <div style="flex:1;min-width:0">
+          <div class="creator-name">${c.handle}</div>
+          <div class="creator-cat">${c.bio ? c.bio.substring(0,40)+'...' : c.category}</div>
+        </div>
+        <button onclick="removeCreator(${i})" style="margin-left:8px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;flex-shrink:0">×</button>
+      </div>
+      <div class="creator-stats">
+        <div><div class="cstat-label">Followers</div><div class="cstat-val">${c.followers||'—'}</div></div>
+        <div><div class="cstat-label">Posts</div><div class="cstat-val">${c.posts||'—'}</div></div>
+        <div><div class="cstat-label">Avg Views</div><div class="cstat-val">${c.avgViews||'—'}</div></div>
+      </div>
+      ${c.profileUrl ? `<a href="${c.profileUrl}" target="_blank" style="display:block;margin-top:10px;font-size:11px;color:var(--purple-light);text-decoration:none;border-top:0.5px solid var(--border);padding-top:8px">Ver perfil en Instagram →</a>` : ''}
+    </div>`).join('');
+}
+
+function removeCreator(i) {
+  state.creators.splice(i, 1);
+  localStorage.setItem('vs_creators', JSON.stringify(state.creators));
+  renderCreators();
+}
+
+function openAddCreator() {
+  const mc = document.getElementById('modal-content');
+  mc.innerHTML = `
+    <div class="modal-title">Add Creator <span id="mcl" style="cursor:pointer;color:var(--text3);font-size:20px;line-height:1">×</span></div>
+    <div class="modal-label">Instagram Username</div>
+    <input class="modal-input" id="m-handle" placeholder="foodie.pr (sin @)" />
+    <div class="modal-label">Categoría / Nicho</div>
+    <input class="modal-input" id="m-cat" placeholder="food-pr, fitness, lifestyle..." />
+    <div class="modal-hint">El sistema extraerá los videos más virales cuando ejecutes el pipeline.</div>
+    <button class="modal-submit" id="msbtn">Agregar Creator</button>`;
+  document.getElementById('modal').style.display = 'flex';
+  document.getElementById('mcl').onclick = closeModal;
+  document.getElementById('msbtn').onclick = function() {
+    const h = document.getElementById('m-handle').value.trim().replace('@','');
+    const c = document.getElementById('m-cat').value.trim();
+    if(!h) { document.getElementById('m-handle').style.borderColor='var(--red)'; return; }
+    state.creators.push({ handle: '@'+h, category: c||'general', followers:'—', reels:'—', avgViews:'—' });
+    localStorage.setItem('vs_creators', JSON.stringify(state.creators));
+    closeModal();
+    renderCreators();
+    updatePipelineClients();
+  };
+  document.getElementById('m-handle').onkeydown = function(e) {
+    if(e.key==='Enter') document.getElementById('msbtn').click();
+  };
+}
+
+// ── CONFIGS ──
+function renderConfigs() {
+  const g = document.getElementById('configs-grid');
+  if(state.configs.length === 0) {
+    g.innerHTML = `<div class="empty" style="grid-column:1/-1;height:200px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      <span>Agrega el perfil de tu primer cliente</span>
+    </div>`;
+    return;
+  }
+  g.innerHTML = state.configs.map((c, i) => `
+    <div class="creator-card">
+      <div class="creator-top">
+        <div class="avatar" style="background:var(--green-bg);color:var(--green)">${c.name.substring(0,2).toUpperCase()}</div>
+        <div>
+          <div class="creator-name">${c.name}</div>
+          <div class="creator-cat">${c.niche}</div>
+        </div>
+        <button onclick="removeConfig(${i})" style="margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px">×</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.8;border-top:0.5px solid var(--border);padding-top:10px">
+        <div>Tono: ${c.tone}</div>
+        <div>CTA preferido: ${c.cta}</div>
+        <div>Duración: ${c.duration}</div>
+      </div>
+    </div>`).join('');
+}
+
+function removeConfig(i) {
+  state.configs.splice(i, 1);
+  localStorage.setItem('vs_configs', JSON.stringify(state.configs));
+  renderConfigs();
+}
+
+function openAddConfig() {
+  const mc = document.getElementById('modal-content');
+  mc.innerHTML = `
+    <div class="modal-title">Add Cliente <span id="ccl" style="cursor:pointer;color:var(--text3);font-size:20px;line-height:1">×</span></div>
+    <div class="modal-label">Nombre del negocio</div>
+    <input class="modal-input" id="m-name" placeholder="Restaurante Bella Vista" />
+    <div class="modal-label">Nicho / Industria</div>
+    <input class="modal-input" id="m-niche" placeholder="Restaurante, Gym, Clínica..." />
+    <div class="modal-label">Tono de voz</div>
+    <input class="modal-input" id="m-tone" placeholder="Cercano, aspiracional, divertido..." />
+    <div class="modal-label">CTA preferido</div>
+    <input class="modal-input" id="m-cta" placeholder="Guardar, Seguir, Visitar..." />
+    <div class="modal-label">Duración objetivo</div>
+    <input class="modal-input" id="m-duration" placeholder="25-35 segundos" />
+    <button class="modal-submit" id="csbtn">Guardar cliente</button>`;
+  document.getElementById('modal').style.display = 'flex';
+  document.getElementById('ccl').onclick = closeModal;
+  document.getElementById('csbtn').onclick = function() {
+    const cfg = {
+      name: document.getElementById('m-name').value.trim(),
+      niche: document.getElementById('m-niche').value.trim(),
+      tone: document.getElementById('m-tone').value.trim(),
+      cta: document.getElementById('m-cta').value.trim(),
+      duration: document.getElementById('m-duration').value.trim()
+    };
+    if(!cfg.name) { document.getElementById('m-name').style.borderColor='var(--red)'; return; }
+    state.configs.push(cfg);
+    localStorage.setItem('vs_configs', JSON.stringify(state.configs));
+    closeModal();
+    renderConfigs();
+    updatePipelineClients();
+  };
+}
+
+function updatePipelineClients() {
+  const sel = document.getElementById('pipeline-client');
+  sel.innerHTML = '<option>Selecciona cliente</option>' +
+    state.configs.map(c => `<option>${c.name}</option>`).join('');
+}
+
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
+}
+
+// Init
+updatePipelineClients();
+</script>
+</body>
+</html>
