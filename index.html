@@ -683,25 +683,25 @@ function renderVideos() {
   grid.innerHTML = state.videos.map((v, i) => {
     const c = COLORS[i % COLORS.length];
     const sel = state.selectedVideo === i;
-    const thumb = v.displayUrl || v.thumbnailUrl || v.previewUrl || '';
-    const profilePic = v.ownerProfilePicUrl || v.profilePicUrl || '';
-    const postUrl = v.url || v.shortCode ? `https://www.instagram.com/p/${v.shortCode}/` : '';
+    const thumb = v.displayUrl || '';
+    const postUrl = v.url || (v.shortCode ? `https://www.instagram.com/p/${v.shortCode}/` : '');
+    const views = v.videoViewCount || v.videoPlayCount || v.likesCount || 0;
     return `<div class="vcard ${sel?'selected':''}" onclick="selectVideo(${i})">
       <div class="vthumb" style="background:${c[0]};position:relative">
-        ${thumb ? `<img src="${thumb}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none'" />` : `<div style="width:100%;height:100%;background:${c[1]};display:flex;align-items:center;justify-content:center"><span style="font-size:11px;color:#444">Sin preview</span></div>`}
-        <div style="position:absolute;bottom:0;left:0;right:0;padding:8px;background:linear-gradient(transparent,rgba(0,0,0,.85))">
-          <div class="vthumb-views"><span class="play"></span>${formatNum(v.videoPlayCount||v.likesCount||0)}</div>
+        ${thumb
+          ? `<img src="${thumb}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" /><div style="display:none;width:100%;height:100%;background:${c[1]};align-items:center;justify-content:center;position:absolute;top:0"><span style="font-size:11px;color:#555">Sin preview</span></div>`
+          : `<div style="width:100%;height:100%;background:${c[1]};display:flex;align-items:center;justify-content:center"><span style="font-size:11px;color:#555">Sin preview</span></div>`}
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:8px;background:linear-gradient(transparent,rgba(0,0,0,.9))">
+          <div class="vthumb-views"><span class="play"></span>${formatNum(views)}</div>
         </div>
-        ${postUrl ? `<a href="${postUrl}" target="_blank" onclick="event.stopPropagation()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);border-radius:6px;padding:4px 8px;font-size:10px;color:#fff;text-decoration:none;border:0.5px solid rgba(255,255,255,.2)">Ver IG</a>` : ''}
+        ${postUrl ? `<a href="${postUrl}" target="_blank" onclick="event.stopPropagation()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.65);border-radius:6px;padding:4px 8px;font-size:10px;color:#fff;text-decoration:none;border:0.5px solid rgba(255,255,255,.15)">Ver IG</a>` : ''}
       </div>
       <div class="vinfo">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-          ${profilePic ? `<img src="${profilePic}" style="width:20px;height:20px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'" />` : ''}
-          <div class="vhandle" style="margin:0">@${v.ownerUsername||v.username||'creator'}</div>
-        </div>
+        <div class="vhandle">@${v.ownerUsername||'creator'}</div>
         <div class="vstats">
           <span>♡ ${formatNum(v.likesCount||0)}</span>
           <span>◻ ${formatNum(v.commentsCount||0)}</span>
+          <span>▶ ${formatNum(views)}</span>
         </div>
         <div class="vtag">${v.config||'Content'}</div>
         <div class="vbtns">
@@ -974,13 +974,15 @@ async function runPipeline() {
     items.forEach(v => {
       const username = v.ownerUsername || v.username;
       if(username && !creatorMap[username]) {
+        const userVideos = items.filter(x=>(x.ownerUsername||x.username)===username);
+        const totalViews = userVideos.reduce((a,x)=>a+(x.videoViewCount||x.videoPlayCount||0),0);
         creatorMap[username] = {
-          profilePic: v.ownerProfilePicUrl || v.profilePicUrl || '',
+          profilePic: v.ownerProfilePicUrl || '',
           followers: v.ownerFollowersCount ? formatNum(v.ownerFollowersCount) : '—',
           posts: v.ownerPostsCount ? formatNum(v.ownerPostsCount) : '—',
-          bio: v.ownerBiography || v.biography || '',
-          profileUrl: `https://www.instagram.com/${username}/`,
-          avgViews: formatNum(Math.round(items.filter(x=>(x.ownerUsername||x.username)===username).reduce((a,x)=>a+(x.videoPlayCount||0),0) / items.filter(x=>(x.ownerUsername||x.username)===username).length))
+          bio: v.ownerBiography || '',
+          profileUrl: v.inputUrl || `https://www.instagram.com/${username}/`,
+          avgViews: userVideos.length ? formatNum(Math.round(totalViews / userVideos.length)) : '—'
         };
       }
     });
