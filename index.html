@@ -683,7 +683,8 @@ function renderVideos() {
   grid.innerHTML = state.videos.map((v, i) => {
     const c = COLORS[i % COLORS.length];
     const sel = state.selectedVideo === i;
-    const thumb = v.displayUrl || '';
+    const rawThumb = v.displayUrl || '';
+    const thumb = rawThumb ? `https://images.weserv.nl/?url=${encodeURIComponent(rawThumb)}&w=400&output=jpg` : '';
     const postUrl = v.url || (v.shortCode ? `https://www.instagram.com/p/${v.shortCode}/` : '');
     const views = v.videoViewCount || v.videoPlayCount || v.likesCount || 0;
     return `<div class="vcard ${sel?'selected':''}" onclick="selectVideo(${i})">
@@ -977,7 +978,7 @@ async function runPipeline() {
         const userVideos = items.filter(x=>(x.ownerUsername||x.username)===username);
         const totalViews = userVideos.reduce((a,x)=>a+(x.videoViewCount||x.videoPlayCount||0),0);
         creatorMap[username] = {
-          profilePic: v.ownerProfilePicUrl || '',
+          profilePic: v.ownerProfilePicUrl ? `https://images.weserv.nl/?url=${encodeURIComponent(v.ownerProfilePicUrl)}&w=100&output=jpg` : '',
           followers: v.ownerFollowersCount ? formatNum(v.ownerFollowersCount) : '—',
           posts: v.ownerPostsCount ? formatNum(v.ownerPostsCount) : '—',
           bio: v.ownerBiography || '',
