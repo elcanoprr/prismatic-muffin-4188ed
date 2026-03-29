@@ -468,6 +468,7 @@
     <div class="config-label">API Keys</div>
     <input class="config-input" id="apify-key" type="password" placeholder="Apify API Key" />
     <input class="config-input" id="claude-key" type="password" placeholder="Claude API Key" />
+    <input class="config-input" id="assembly-key" type="password" placeholder="AssemblyAI API Key" />
     <button class="save-btn" onclick="saveKeys()">Guardar keys</button>
     <div id="keys-status" style="font-size:10px;color:var(--text3);margin-top:6px;text-align:center"></div>
   </div>
@@ -621,6 +622,7 @@
 let state = {
   apifyKey: localStorage.getItem('vs_apify') || '',
   claudeKey: localStorage.getItem('vs_claude') || '',
+  assemblyKey: localStorage.getItem('vs_assembly') || '',
   creators: JSON.parse(localStorage.getItem('vs_creators') || '[]'),
   configs: JSON.parse(localStorage.getItem('vs_configs') || '[]'),
   videos: JSON.parse(localStorage.getItem('vs_videos') || '[]'),
@@ -631,13 +633,16 @@ let state = {
 // Load saved keys
 if(state.apifyKey) document.getElementById('apify-key').value = state.apifyKey;
 if(state.claudeKey) document.getElementById('claude-key').value = state.claudeKey;
+if(state.assemblyKey) document.getElementById('assembly-key').value = state.assemblyKey;
 
 // ── KEYS ──
 function saveKeys() {
   state.apifyKey = document.getElementById('apify-key').value.trim();
   state.claudeKey = document.getElementById('claude-key').value.trim();
+  state.assemblyKey = document.getElementById('assembly-key').value.trim();
   localStorage.setItem('vs_apify', state.apifyKey);
   localStorage.setItem('vs_claude', state.claudeKey);
+  localStorage.setItem('vs_assembly', state.assemblyKey);
   const s = document.getElementById('keys-status');
   s.style.color = 'var(--green)';
   s.textContent = 'Keys guardadas';
@@ -747,13 +752,24 @@ function renderPanel(v, tab) {
   if(tab === 'analysis') {
     const analysis = v.aiAnalysis;
     if(!analysis) {
-      b.innerHTML = `<div style="color:var(--text3);font-size:12px;margin-top:16px">
-        <p style="margin-bottom:12px">No hay análisis IA aún para este video.</p>
-        <button class="gen-btn" onclick="analyzeVideo(${state.selectedVideo})">Analizar con IA</button>
+      const hasAudio = state.videos[state.selectedVideo]?.audioUrl || state.videos[state.selectedVideo]?.videoUrl;
+      b.innerHTML = `<div style="color:var(--text3);font-size:12px;margin-top:16px;display:flex;flex-direction:column;gap:8px">
+        <p style="margin-bottom:4px;color:var(--text2)">Elige cómo analizar este video:</p>
+        ${hasAudio && state.assemblyKey ? `<button class="gen-btn" style="background:#1a1a2e;border:0.5px solid #534AB7;color:#AFA9EC" onclick="transcribeAndAnalyze(${state.selectedVideo})">Transcribir audio + analizar (mejor)</button>` : ''}
+        <button class="gen-btn" onclick="analyzeVideo(${state.selectedVideo})">Analizar con caption (rápido)</button>
+        ${!state.assemblyKey ? '<p style="font-size:11px;color:var(--text3);margin-top:4px">Agrega tu AssemblyAI key para análisis de audio</p>' : ''}
       </div>`;
       return;
     }
-    b.innerHTML = analysis.scenes.map(s => `
+    const score = analysis.viralScore;
+    const hookType = analysis.hookType;
+    b.innerHTML = 
+      (score || hookType ? `<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        ${hookType ? `<span style="font-size:11px;padding:4px 10px;border-radius:20px;background:var(--purple-bg);color:var(--purple-light)">Hook: ${hookType}</span>` : ''}
+        ${score ? `<span style="font-size:11px;padding:4px 10px;border-radius:20px;background:${parseInt(score)>70?'var(--green-bg)':'var(--amber-bg)'};color:${parseInt(score)>70?'var(--green)':'var(--amber)'}">Score viral: ${score}</span>` : ''}
+        ${v.transcription ? `<span style="font-size:11px;padding:4px 10px;border-radius:20px;background:#111;color:var(--text3)">Transcripción disponible</span>` : ''}
+      </div>` : '') +
+      analysis.scenes.map(s => `
       <div class="scene">
         <div class="scene-label">${s.label}</div>
         <div class="scene-text">${s.text}</div>
@@ -798,6 +814,65 @@ async function callClaude(prompt) {
   });
   const data = await res.json();
   return data.content?.[0]?.text || null;
+}
+
+async function transcribeAndAnalyze(idx) {
+  const v = state.videos[idx];
+  const b = document.getElementById('panel-body');
+  const audioUrl = v.audioUrl || v.videoUrl;
+  if(!audioUrl) { analyzeVideo(idx); return; }
+
+  b.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;margin-top:20px">
+    <div style="display:flex;align-items:center;gap:10px;color:var(--text2);font-size:13px"><div class="spinner"></div> Transcribiendo audio...</div>
+    <div style="font-size:11px;color:var(--text3)">Esto puede tardar 30-60 segundos</div>
+  </div>`;
+
+  try {
+    const res = await fetch('/.netlify/functions/transcribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assemblyKey: state.assemblyKey, audioUrl })
+    });
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+
+    state.videos[idx].transcription = data.text;
+    localStorage.setItem('vs_videos', JSON.stringify(state.videos));
+
+    b.innerHTML = `<div style="display:flex;align-items:center;gap:10px;color:var(--text2);font-size:13px"><div class="spinner"></div> Analizando transcripción con IA...</div>`;
+    await analyzeVideoWithTranscription(idx);
+  } catch(err) {
+    b.innerHTML = `<div style="color:var(--red);font-size:12px;margin-top:16px">Error: ${err.message}<br><br><button class="gen-btn" onclick="analyzeVideo(${idx})">Analizar con caption</button></div>`;
+  }
+}
+
+async function analyzeVideoWithTranscription(idx) {
+  const v = state.videos[idx];
+  const b = document.getElementById('panel-body');
+  const client = state.configs[0] ? `Cliente: ${state.configs[0].name} — Nicho: ${state.configs[0].niche}` : 'negocio local';
+  const transcription = v.transcription || '';
+
+  const prompt = `Analiza este video viral de Instagram Reels con su transcripción completa y devuelve SOLO un JSON válido sin markdown.
+
+Video: @${v.ownerUsername||v.username} | ${formatNum(v.videoViewCount||v.videoPlayCount||0)} views
+Transcripción completa: "${transcription.substring(0, 1000)}"
+Caption: "${(v.caption||'').substring(0,200)}"
+${client}
+
+Analiza el hook exacto (primeras palabras), el storytelling, el CTA real que usó.
+
+{"scenes":[{"label":"Hook (0-3s)","text":"primeras palabras exactas del video","why":"por qué este hook genera retención"},{"label":"Desarrollo (3-20s)","text":"qué dice y muestra","why":"por qué mantiene la atención"},{"label":"Clímax (20-45s)","text":"el momento clave","why":"por qué genera emoción o acción"},{"label":"CTA (45-60s)","text":"llamada a la acción exacta","why":"por qué funciona"}],"concepts":[{"num":"Concept 1","title":"título adaptado al cliente","body":"descripción del concepto"},{"num":"Concept 2","title":"título alternativo","body":"descripción"}],"hookType":"tipo de hook detectado","viralScore":"estimado 0-100"}`;
+
+  const raw = await callClaude(prompt);
+  if(!raw) return;
+  try {
+    const clean = raw.replace(/\`\`\`json|\`\`\`/g,'').trim();
+    state.videos[idx].aiAnalysis = JSON.parse(clean);
+    localStorage.setItem('vs_videos', JSON.stringify(state.videos));
+    renderPanel(state.videos[idx], 'analysis');
+  } catch(e) {
+    b.innerHTML = `<div style="color:var(--red);font-size:12px">Error al procesar. <button class="gen-btn" onclick="analyzeVideo(${idx})">Intentar con caption</button></div>`;
+  }
 }
 
 async function analyzeVideo(idx) {
