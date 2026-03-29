@@ -12,6 +12,35 @@ exports.handler = async (event) => {
   try {
     const { assemblyKey, audioUrl } = JSON.parse(event.body);
 
+    // First download the audio from Instagram via server-side fetch
+    // (Instagram URLs expire and block client-side access)
+    let finalAudioUrl = audioUrl;
+    try {
+      const audioRes = await fetch(audioUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+        }
+      });
+      if (!audioRes.ok) throw new Error('Could not fetch audio');
+      const audioBuffer = await audioRes.arrayBuffer();
+      const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+      
+      // Upload to AssemblyAI first
+      const uploadRes = await fetch('https://api.assemblyai.com/v2/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': assemblyKey,
+          'Content-Type': 'application/octet-stream'
+        },
+        body: Buffer.from(audioBuffer)
+      });
+      const uploadData = await uploadRes.json();
+      if (uploadData.upload_url) finalAudioUrl = uploadData.upload_url;
+    } catch(e) {
+      // If download fails, try direct URL anyway
+      console.log('Direct download failed, trying URL directly:', e.message);
+    }
+
     // Submit transcription job
     const submitRes = await fetch('https://api.assemblyai.com/v2/transcript', {
       method: 'POST',
@@ -20,7 +49,7 @@ exports.handler = async (event) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        audio_url: audioUrl,
+        audio_url: finalAudioUrl,
         language_code: 'es',
         punctuate: true,
         format_text: true
