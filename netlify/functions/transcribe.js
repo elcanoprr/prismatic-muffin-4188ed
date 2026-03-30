@@ -4,91 +4,50 @@ exports.handler = async (event) => {
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
-
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
-  }
-
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   try {
-    const { assemblyKey, audioUrl } = JSON.parse(event.body);
-
-    // First download the audio from Instagram via server-side fetch
-    // (Instagram URLs expire and block client-side access)
-    let finalAudioUrl = audioUrl;
+    const { assemblyKey, audioUrl, apifyKey } = JSON.parse(event.body);
+    if (!assemblyKey) throw new Error('Falta AssemblyAI key');
+    if (!audioUrl) throw new Error('Falta audioUrl');
+    let uploadUrl = audioUrl;
     try {
-      const audioRes = await fetch(audioUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-        }
-      });
-      if (!audioRes.ok) throw new Error('Could not fetch audio');
-      const audioBuffer = await audioRes.arrayBuffer();
-      const audioBase64 = Buffer.from(audioBuffer).toString('base64');
-      
-      // Upload to AssemblyAI first
-      const uploadRes = await fetch('https://api.assemblyai.com/v2/upload', {
+      const fh = {
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15',
+        'Accept': 'video/mp4,video/*;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'es-US,es;q=0.9',
+        'Referer': 'https://www.instagram.com/',
+        'Origin': 'https://www.instagram.com',
+      };
+      if (apifyKey && (audioUrl.includes('apify.com') || audioUrl.includes('apifyusercontent.com'))) {
+        fh['Authorization'] = 'Bearer ' + apifyKey;
+      }
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 7000);
+      const ar = await fetch(audioUrl, { headers: fh, signal: ctrl.signal });
+      clearTimeout(tid);
+      if (!ar.ok) throw new Error('HTTP ' + ar.status);
+      const buf = await ar.arrayBuffer();
+      if (buf.byteLength === 0) throw new Error('Audio vacio');
+      const up = await fetch('https://api.assemblyai.com/v2/upload', {
         method: 'POST',
-        headers: {
-          'Authorization': assemblyKey,
-          'Content-Type': 'application/octet-stream'
-        },
-        body: Buffer.from(audioBuffer)
+        headers: { 'Authorization': assemblyKey, 'Content-Type': 'application/octet-stream' },
+        body: Buffer.from(buf)
       });
-      const uploadData = await uploadRes.json();
-      if (uploadData.upload_url) finalAudioUrl = uploadData.upload_url;
-    } catch(e) {
-      // If download fails, try direct URL anyway
-      console.log('Direct download failed, trying URL directly:', e.message);
+      const ud = await up.json();
+      if (ud.upload_url) uploadUrl = ud.upload_url;
+      else throw new Error('No upload_url: ' + JSON.stringify(ud));
+    } catch (e) {
+      console.log('Download/upload fallido, usando URL directa:', e.message);
     }
-
-    // Submit transcription job
-    const submitRes = await fetch('https://api.assemblyai.com/v2/transcript', {
+    const sr = await fetch('https://api.assemblyai.com/v2/transcript', {
       method: 'POST',
-      headers: {
-        'Authorization': assemblyKey,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        audio_url: finalAudioUrl,
-        language_code: 'es',
-        punctuate: true,
-        format_text: true
-      })
+      headers: { 'Authorization': assemblyKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audio_url: uploadUrl, language_code: 'es', punctuate: true, format_text: true })
     });
-
-    const submitData = await submitRes.json();
-    if (!submitData.id) throw new Error('No se pudo iniciar la transcripción');
-
-    const transcriptId = submitData.id;
-
-    // Poll until complete (max 60 seconds)
-    let attempts = 0;
-    while (attempts < 20) {
-      await new Promise(r => setTimeout(r, 3000));
-      const pollRes = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptId}`, {
-        headers: { 'Authorization': assemblyKey }
-      });
-      const pollData = await pollRes.json();
-
-      if (pollData.status === 'completed') {
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ text: pollData.text, words: pollData.words })
-        };
-      }
-      if (pollData.status === 'error') {
-        throw new Error('Error en transcripción: ' + pollData.error);
-      }
-      attempts++;
-    }
-
-    throw new Error('Transcripción tardó demasiado');
+    const sd = await sr.json();
+    if (!sd.id) throw new Error('No transcriptId: ' + (sd.error || JSON.stringify(sd)));
+    return { statusCode: 200, headers, body: JSON.stringify({ transcriptId: sd.id, status: 'queued', usedDirectUrl: uploadUrl === audioUrl }) };
   } catch (err) {
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: err.message })
-    };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
   }
 };
