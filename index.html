@@ -427,7 +427,8 @@
 
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
-</head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  </head>
 <body>
 
 <!-- SIDEBAR -->
@@ -800,11 +801,65 @@ function renderPanel(v, tab) {
       </div>`;
       return;
     }
-    b.innerHTML = `<div style="font-size:12px;color:var(--text);line-height:1.7;white-space:pre-wrap">${v.aiScript}</div>`;
+    b.innerHTML = `<div style="font-size:12px;color:var(--text);line-height:1.7;white-space:pre-wrap">${v.aiScript}</div>
+    <button onclick="exportGuionToPDF()" style="margin-top:12px;padding:8px 16px;background:var(--blue);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">⬇ Exportar PDF</button>`;
   }
 }
 
 // ── CLAUDE AI CALLS ──
+function exportGuionToPDF() {
+  const v = state.videos[state.selectedVideo];
+  if (!v || !v.aiScript) { alert('No hay guion para exportar.'); return; }
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const client = (state.configs[0] && state.configs[0].name) ? state.configs[0].name : 'Cliente';
+    const creator = '@' + (v.ownerUsername || v.username || 'creator');
+    const fecha = new Date().toLocaleDateString('es', { year:'numeric', month:'long', day:'numeric' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const m = 20;
+    const cW = pageW - m * 2;
+    // Header bar
+    doc.setDrawColor(124, 198, 254);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(m, 10, cW, 22, 3, 3, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(124, 198, 254);
+    doc.text('Virality System', m + 4, 20);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120, 120, 120);
+    doc.text('Guion generado con IA', m + 4, 27);
+    // Meta info
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(50, 50, 50);
+    doc.text('Cliente: ' + client, m, 44);
+    doc.text('Creator: ' + creator, m, 51);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text('Fecha: ' + fecha, m, 58);
+    doc.setDrawColor(210, 210, 210);
+    doc.line(m, 63, pageW - m, 63);
+    // Script body
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(30, 30, 30);
+    const lines = doc.splitTextToSize(v.aiScript, cW);
+    let y = 72;
+    const lineH = 5.5;
+    const pageH = doc.internal.pageSize.getHeight();
+    lines.forEach(line => {
+      if (y > pageH - 20) { doc.addPage(); y = 20; }
+      doc.text(line, m, y);
+      y += lineH;
+    });
+    const fname = 'guion-' + client.toLowerCase().replace(/\s+/g, '-') + '-' + new Date().toISOString().split('T')[0] + '.pdf';
+    doc.save(fname);
+  } catch(e) { alert('Error al exportar PDF: ' + e.message); }
+}
+
 async function callClaude(prompt) {
   if(!state.claudeKey) { alert('Primero guarda tu Claude API Key en el sidebar.'); return null; }
   const res = await fetch('/.netlify/functions/claude', {
